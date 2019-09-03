@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  tlb:
+    container_name: tlb
+    image: xdays/tlb
+    ports:
+      - 80:80
+      - 443:443
+      - 445:445
+    volumes:
+      - $PWD/app:/usr/local/openresty/nginx/app
+      - $PWD/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+    environment:
+      PANEL_HOST: ${PANEL_HOST}
