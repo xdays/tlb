@@ -28,7 +28,7 @@ function _M.warm_up(rules)
     local targets = {}
     for k, v in ipairs(rules) do
         local count = stats:get(v .. "-nb")
-        if  count < 10 then
+        if count == nil or count < 10 then
             need_random = true
             targets[#targets+1] = v
         end
