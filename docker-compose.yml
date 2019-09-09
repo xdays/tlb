@@ -13,3 +13,4 @@ services:
       - $PWD/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
     environment:
       PANEL_HOST: ${PANEL_HOST}
+      PANEL_TYPE: ${PANEL_TYPE}

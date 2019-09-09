@@ -30,26 +30,30 @@ for k,v in pairs(t) do
     stats:set(metric_key, sum)
 end
 
-local nb_key = upstream_addr .. "-nb"
+local count_key = upstream_addr .. "-count"
+local avg_res_ttfb_key = upstream_addr .. "-ttfb"
+local avg_res_speed_key = upstream_addr .. "-speed" 
+local expire_time = 0
 local avg_res_ttfb
 local avg_res_speed
-local expire_time = 0
 -- fail fast for unavailable upstream 
 if t.ttfb_time == 1000 then
     -- retry after some time
     stats:set(upstream_addr .. "-ttfb_time_sum", 10000, config.lb_retry_time - 5)
-    stats:set(nb_key, 10, config.lb_retry_time - 5)
+    stats:set(count_key, 10, config.lb_retry_time - 5)
     avg_res_ttfb = t.ttfb_time
     expire_time = config.lb_retry_time
 else
-    local newval, err = stats:incr(nb_key, 1)
+    local newval, err = stats:incr(count_key, 1)
     if not newval and err == "not found" then
-        stats:add(nb_key, 0)
-        stats:incr(nb_key, 1)
+        stats:add(count_key, 0)
+        stats:incr(count_key, 1)
     end
-    avg_res_ttfb = r.ttfb_time/stats:get(nb_key)
+    avg_res_ttfb = r.ttfb_time/stats:get(count_key)
 end
+stats:set(avg_res_ttfb_key, avg_res_ttfb)
 avg_res_speed = r.bytes_received/r.total_time
-servers:set(upstream_addr, avg_res_ttfb .. "," .. avg_res_speed, expire_time) 
+stats:set(avg_res_speed_key, avg_res_speed)
 ngx.log(ngx.INFO, string.format("upstream %s quality: {avg_res_ttfb: %s, avg_res_speed: %s}\n",
     upstream_addr, avg_res_ttfb, avg_res_speed))
+servers:set(upstream_addr, 1)

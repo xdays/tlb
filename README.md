@@ -4,12 +4,12 @@ TCP load balancer with least response time load balancing strategy
 
 # Goal
 
-This project can work with transparent v2ray to select best node with least response time.
+This project can work with v2ray and ssr to select best node with least response time or network speed.
 
 # Features
 
 * get upstream servers from subscription
-* filter out failure upstream server(will never be used)
+* filter out failure upstream server
 * select best backend server with least time for first byte
 * select best backend server with highest speed
 
@@ -18,7 +18,8 @@ This project can work with transparent v2ray to select best node with least resp
 ```
 docker build -t tlb .
 cat > .env <<EOF
-PANEL_HOST=example.com
+PANEL_HOST=example.com # subscription url
+PANEL_TYPE=v2ray # use ss for ss
 EOF
 docker-compose up -d
 ```
@@ -33,8 +34,6 @@ local _M = {
     lb_method = "max_speed",
     -- time for retry failed server
     lb_retry_time = 300,
-    -- backend server port
-    server_port = 443,
 }
 
 return _M

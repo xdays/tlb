@@ -1,4 +1,5 @@
 local common = require "common"
+local panel = require "panel"
 local cjson = require "cjson.safe"
 local _M = {}
 
@@ -27,7 +28,7 @@ function _M.warm_up(rules)
     local need_random = false
     local targets = {}
     for k, v in ipairs(rules) do
-        local count = stats:get(v .. "-nb")
+        local count = stats:get(v .. "-count")
         if count == nil or count < 10 then
             need_random = true
             targets[#targets+1] = v
@@ -50,16 +51,18 @@ function _M.least_ttfb()
     local least_res_ttfb = 1000000
     local least_upstream
     local avg_res_ttfb
+    local upstream_port 
 
     local warm_target = _M.warm_up(rules)
     if warm_target ~= nil then
-        return warm_target
+        upstream_port = stats:get(warm_target .. "-port")
+        return {warm_target, upstream_port}
     end
 
     -- select upstream that res time is least
     for k, v in ipairs(rules) do
-        local metrics = servers:get(v)
-        avg_res_ttfb = tonumber(common.split(metrics, ",")[1])
+        local avg_res_ttfb_key = v .. "-ttfb"
+        avg_res_ttfb = stats:get(avg_res_ttfb_key)
         ngx.log(ngx.DEBUG, v .. " current res ttfb is " .. avg_res_ttfb)
         if avg_res_ttfb < least_res_ttfb then
             least_res_ttfb = avg_res_ttfb
@@ -67,7 +70,8 @@ function _M.least_ttfb()
         end
     end
     ngx.log(ngx.INFO, least_upstream .. " is best upstream now as its res ttfb is " .. avg_res_ttfb)
-    return least_upstream
+    upstream_port = stats:get(least_upstream.. "-port")
+    return {least_upstream, upstream_port}
 end
 
 function _M.max_speed()
@@ -75,16 +79,23 @@ function _M.max_speed()
     local max_res_speed = 0
     local fastest_upstream
     local avg_res_speed
+    local upstream_port 
+
+    -- repeat
+    --     ngx.log(ngx.DEBUG, "there is no rule, so generate and save rules")
+    --     rules = _M.get_rules()
+    -- until #rules > 0
 
     local warm_target = _M.warm_up(rules)
     if warm_target ~= nil then
-        return warm_target
+        upstream_port = stats:get(warm_target .. "-port")
+        return {warm_target, upstream_port}
     end
 
     -- select upstream that is fastest
     for k, v in ipairs(rules) do
-        local metrics = servers:get(v)
-        avg_res_speed = tonumber(common.split(metrics, ",")[2])
+        local avg_res_speed_key = v .. "-speed" 
+        avg_res_speed = stats:get(avg_res_speed_key)
         ngx.log(ngx.DEBUG, v .. " current speed is " .. avg_res_speed)
         if avg_res_speed > max_res_speed then
             max_res_speed = avg_res_speed
@@ -92,7 +103,8 @@ function _M.max_speed()
         end
     end
     ngx.log(ngx.INFO, fastest_upstream .. " is best upstream now as its speed is " .. avg_res_speed)
-    return fastest_upstream
+    upstream_port = stats:get(fastest_upstream .. "-port")
+    return {fastest_upstream, upstream_port}
 end
 
 function _M.round_robin()

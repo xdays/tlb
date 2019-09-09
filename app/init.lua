@@ -1,28 +1,12 @@
 local panel = require "panel"
 
-
-local servers = ngx.shared.servers
 local delay = 5
 local handler
 local lock = false
 
-function generate_rules()
-    local panel_host = os.getenv("PANEL_HOST")
-    local rules = panel.generate_rules(panel_host)
-    for k,v in ipairs(rules) do
-        local metrics = servers:get(v)
-        if  metrics == nil then
-            ngx.log(ngx.DEBUG, "add server: " .. v)
-            local res, err = servers:set(v, 0)
-            if res == false then
-                ngx.log(ngx.ERR, err)
-            end
-        end
-    end
-end
 
 function handler(premature)
-    generate_rules()
+    panel.save_rules()
     if premature then
         return
     end
