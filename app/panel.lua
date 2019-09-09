@@ -18,6 +18,7 @@ end
 
 function _M.reslove(host)
     local resolver = require "resty.dns.resolver"
+    local ip
     local r, err = resolver:new{
         nameservers = {"8.8.8.8", {"8.8.4.4", 53} },
         retrans = 5,  -- 5 retransmissions on receive timeout
@@ -42,8 +43,12 @@ function _M.reslove(host)
     end
 
     for i, ans in ipairs(answers) do
-        return ans.address
+        if ans.address ~= nil then
+            ip = ans.address
+            ngx.log(ngx.DEBUG, "dns reslult for " .. host .. " is: " .. ip)
+        end
     end
+    return ip
 end
 
 function _M.send_request(url)
