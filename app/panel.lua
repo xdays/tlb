@@ -125,8 +125,29 @@ function _M.get_rules()
     return rules
 end
 
+function _M.delete_stats_keys(prefix)
+    local all_stats_keys = stats:get_keys()
+    for m,n in ipairs(all_stats_keys) do
+        if common.startswith(m, prefix) then
+            stats:delete(m)
+        end
+    end
+end
+
+function _M.cleanup_rules(rules)
+    local saved_servers = servers:get_keys()
+    for k,v in pairs(saved_servers) do
+        if not common.member(rules, v) then
+            ngx.log(ngx.INFO, "delete server that not exist in subscripiton: " .. v)
+            servers:delete(v)
+            _M.delete_stats_keys(v)
+        end
+    end
+end
+
 function _M.save_rules()
     local rules = _M.get_rules()
+    _M.cleanup_rules(rules)
     for k,v in pairs(rules) do
         local status = servers:get(k)
         if  status == nil then
