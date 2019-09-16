@@ -1,10 +1,10 @@
 # TLB
 
-TCP load balancer with least response time load balancing strategy
+TCP load balancer with least response time and max network speed load balancing strategy
 
 # Goal
 
-This project can work with v2ray and ssr to select best node with least response time or network speed.
+This project can work with v2ray and ssr to select best node with least response time or best network speed.
 
 # Features
 
@@ -12,6 +12,7 @@ This project can work with v2ray and ssr to select best node with least response
 * filter out failure upstream server
 * select best backend server with least time for first byte
 * select best backend server with highest speed
+* retry failed server
 
 # Setup
 
@@ -37,6 +38,18 @@ local _M = {
 }
 
 return _M
+```
+
+# Monitoring
+
+```
+soocat - tcp:localhost:445 | jq
+```
+
+or
+
+```
+nc localhost 445 | jq
 ```
 
 Enjoy!
