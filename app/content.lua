@@ -5,7 +5,7 @@ local servers = ngx.shared.servers
 local stats = ngx.shared.stats
 local data = {}
 local stat_keys = {
-    "ttfb", "speed", "count"
+    "ttfb", "speed", "count", "port"
 }
 for k,v in ipairs(servers:get_keys()) do
     local r = {}
