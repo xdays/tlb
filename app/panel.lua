@@ -1,6 +1,7 @@
 local http = require "resty.http"
 local cjson = require "cjson.safe"
 local common = require "common"
+local yaml = require "yaml"
 local _M = {}
 
 local stats = ngx.shared.stats
@@ -19,10 +20,11 @@ end
 function _M.reslove(host)
     local resolver = require "resty.dns.resolver"
     local ip
-    local r, err = resolver:new{
-        nameservers = {"8.8.8.8", {"8.8.4.4", 53} },
-        retrans = 5,  -- 5 retransmissions on receive timeout
-        timeout = 2000,  -- 2 sec
+    local r, err =
+        resolver:new {
+        nameservers = {"8.8.8.8", {"8.8.4.4", 53}},
+        retrans = 5, -- 5 retransmissions on receive timeout
+        timeout = 2000 -- 2 sec
     }
 
     if not r then
@@ -38,8 +40,7 @@ function _M.reslove(host)
     end
 
     if answers.errcode then
-        ngx.log(ngx.ERR, "server returned error code: ", answers.errcode,
-                ": ", answers.errstr)
+        ngx.log(ngx.INFO, "server returned error code: ", answers.errcode, ": ", answers.errstr)
     end
 
     for i, ans in ipairs(answers) do
@@ -55,7 +56,7 @@ function _M.send_request(url)
     local httpc = http.new()
     httpc:set_timeout(3000)
     ngx.log(ngx.DEBUG, "get nodes from api: " .. url)
-    local r, err = httpc:request_uri(url, { ssl_verify = false, })
+    local r, err = httpc:request_uri(url, {ssl_verify = false})
     if (not r) or r.status ~= 200 then
         ngx.log(ngx.ERR, "failed to get data from panel: " .. (err or "unknown"))
         return nil
@@ -70,7 +71,7 @@ function _M.get_v2ray_panel_servers(url)
     if r == nil then
         return servers
     end
-    for k,v in ipairs(cjson.decode(r)["data"]) do
+    for k, v in ipairs(cjson.decode(r)["data"]) do
         local ip = v["add"]
         local port = v["port"]
         if not _M.is_ip(ip) then
@@ -90,11 +91,11 @@ function _M.get_ss_panel_servers(url)
     if r ~= nil then
         ngx.log(ngx.DEBUG, "panel response is: " .. r)
         local data = ngx.decode_base64(r)
-        t = common.split(data, '\n')
+        t = common.split(data, "\n")
     else
         ngx.log(ngx.ERR, "panel response is nil")
     end
-    for k,v in ipairs(t) do
+    for k, v in ipairs(t) do
         v = v:gsub("ssr://", "")
         v = v:gsub("_", "/")
         local n_str = ngx.decode_base64(v)
@@ -111,14 +112,41 @@ function _M.get_ss_panel_servers(url)
     return servers
 end
 
+function _M.get_rixcloud_panel_servers(url)
+    local servers = {}
+    local r = _M.send_request(url)
+    if r == nil then
+        return servers
+    end
+    for k, v in ipairs(yaml.eval(r)["Proxy"]) do
+        local name = v["name"]
+        local match = string.find(name, "美国高级 BGP 中继 4")
+        if match ~= nil then
+            local ip = v["server"]
+            local port = v["port"]
+            if not _M.is_ip(ip) then
+                ngx.log(ngx.DEBUG, "try to reslove " .. ip .. " to ip")
+                ip = _M.reslove(ip)
+            end
+            if ip ~= nil then
+                servers[ip] = port
+            end
+        end
+    end
+    ngx.log(ngx.DEBUG, "servers got from v2ray panel: " .. cjson.encode(servers))
+    return servers
+end
+
 function _M.get_rules()
     local panel_host = os.getenv("PANEL_HOST")
     local panel_type = os.getenv("PANEL_TYPE")
-    local rules 
+    local rules
     if panel_type == "v2ray" then
         rules = _M.get_v2ray_panel_servers(panel_host)
     elseif panel_type == "ss" then
         rules = _M.get_ss_panel_servers(panel_host)
+    elseif panel_type == "rixcloud" then
+        rules = _M.get_rixcloud_panel_servers(panel_host)
     else
         ngx.log(ngx.ERR, "unknown panel type")
     end
@@ -127,7 +155,7 @@ end
 
 function _M.delete_stats_keys(prefix)
     local all_stats_keys = stats:get_keys()
-    for m,n in ipairs(all_stats_keys) do
+    for m, n in ipairs(all_stats_keys) do
         if common.startswith(m, prefix) then
             stats:delete(m)
         end
@@ -136,7 +164,7 @@ end
 
 function _M.cleanup_rules(rules)
     local saved_servers = servers:get_keys()
-    for k,v in pairs(saved_servers) do
+    for k, v in pairs(saved_servers) do
         if not common.member(rules, v) then
             ngx.log(ngx.INFO, "delete server that not exist in subscripiton: " .. v)
             servers:delete(v)
@@ -148,9 +176,9 @@ end
 function _M.save_rules()
     local rules = _M.get_rules()
     _M.cleanup_rules(rules)
-    for k,v in pairs(rules) do
+    for k, v in pairs(rules) do
         local status = servers:get(k)
-        if  status == nil then
+        if status == nil then
             ngx.log(ngx.DEBUG, "add server: " .. k)
             local res, err = servers:set(k, 0)
             if res == false then
