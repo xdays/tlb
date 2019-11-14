@@ -76,7 +76,7 @@ end
 
 function _M.max_speed()
     local rules = _M.get_rules()
-    local max_res_speed = 0
+    local max_res_speed = -1
     local fastest_upstream
     local avg_res_speed
     local upstream_port 

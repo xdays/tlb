@@ -61,7 +61,7 @@ function _M.send_request(url)
         ngx.log(ngx.ERR, "failed to get data from panel: " .. (err or "unknown"))
         return nil
     end
-    ngx.log(ngx.DEBUG, "panel result is: " .. r.body)
+    ngx.log(ngx.DEBUG, "panel result is:\n" .. r.body)
     return r.body
 end
 
