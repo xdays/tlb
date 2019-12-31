@@ -112,7 +112,7 @@ function _M.get_ss_panel_servers(url)
     return servers
 end
 
-function _M.get_rixcloud_panel_servers(url)
+function _M.get_clash_panel_servers(url)
     local servers = {}
     local r = _M.send_request(url)
     if r == nil then
@@ -120,17 +120,14 @@ function _M.get_rixcloud_panel_servers(url)
     end
     for k, v in ipairs(yaml.eval(r)["Proxy"]) do
         local name = v["name"]
-        local match = string.find(name, "美国高级 BGP 中继 4")
-        if match ~= nil then
-            local ip = v["server"]
-            local port = v["port"]
-            if not _M.is_ip(ip) then
-                ngx.log(ngx.DEBUG, "try to reslove " .. ip .. " to ip")
-                ip = _M.reslove(ip)
-            end
-            if ip ~= nil then
-                servers[ip] = port
-            end
+        local ip = v["server"]
+        local port = v["port"]
+        if not _M.is_ip(ip) then
+            ngx.log(ngx.DEBUG, "try to reslove " .. ip .. " to ip")
+            ip = _M.reslove(ip)
+        end
+        if ip ~= nil then
+            servers[ip] = port
         end
     end
     ngx.log(ngx.DEBUG, "servers got from v2ray panel: " .. cjson.encode(servers))
@@ -138,15 +135,15 @@ function _M.get_rixcloud_panel_servers(url)
 end
 
 function _M.get_rules()
+    local rules
     local panel_host = os.getenv("PANEL_HOST")
     local panel_type = os.getenv("PANEL_TYPE")
-    local rules
     if panel_type == "v2ray" then
         rules = _M.get_v2ray_panel_servers(panel_host)
     elseif panel_type == "ss" then
         rules = _M.get_ss_panel_servers(panel_host)
-    elseif panel_type == "rixcloud" then
-        rules = _M.get_rixcloud_panel_servers(panel_host)
+    elseif panel_type == "clash" then
+        rules = _M.get_clash_panel_servers(panel_host)
     else
         ngx.log(ngx.ERR, "unknown panel type")
     end

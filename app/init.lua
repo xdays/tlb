@@ -1,6 +1,6 @@
 local panel = require "panel"
 
-local delay = 5
+local delay = 10
 local handler
 local lock = false
 
