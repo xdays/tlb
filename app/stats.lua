@@ -14,7 +14,7 @@ local t = {
 local r = {}
 
 ngx.log(
-    ngx.DEBUG,
+    ngx.INFO,
     string.format(
         "upstream %s metrics: {total:%s, ttfb: %s, size: %s}\n",
         upstream_addr,
@@ -25,16 +25,25 @@ ngx.log(
 )
 
 if t.ttfb_time == "-" then
-    t.ttfb_time = "1000"
-    t.bytes_received = "0"
+    t.ttfb_time = 1000
+    t.bytes_received = 0
 end
 
 for k, v in pairs(t) do
-    local metric_value = tonumber(v)
-    t[k] = metric_value
+    t[k] = tonumber(v)
+end
+
+if t.bytes_received < 1024 * 1024 * 0.25 then
+    ngx.log(ngx.DEBUG, "ignore this reponse metric as its body is too small " .. t.bytes_received)
+    t.bytes_received = 0
+else
+    ngx.log(ngx.DEBUG, "record this reponse metric as its body is normal " .. t.bytes_received)
+end
+
+for k, v in pairs(t) do
     local metric_key = upstream_addr .. "-" .. k .. "_sum"
     local sum = stats:get(metric_key) or 0
-    sum = sum + metric_value
+    sum = sum + v
     r[k] = sum
     stats:set(metric_key, sum)
 end
@@ -49,17 +58,19 @@ if t.ttfb_time == 1000 then
     -- retry after some time
     local expire_time = config.lb_retry_time
     stats:set(upstream_addr .. "-ttfb_time_sum", 10000, expire_time)
-    stats:set(upstream_addr .. "-bytes_received_sum", 0, expire_time)
     stats:set(count_key, 10, expire_time)
-else
+elseif t.bytes_received ~= 0 then
+    -- keep count when received bytes is too small
     local newval, err = stats:incr(count_key, 1)
     if not newval and err == "not found" then
         stats:add(count_key, 0)
         stats:incr(count_key, 1)
     end
 end
-avg_res_ttfb = r.ttfb_time
+-- use realtime ttfb time only
+avg_res_ttfb = t.ttfb_time
 stats:set(avg_res_ttfb_key, avg_res_ttfb)
+-- use average speed
 avg_res_speed = r.bytes_received / r.total_time
 stats:set(avg_res_speed_key, avg_res_speed)
 ngx.log(

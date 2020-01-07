@@ -28,10 +28,17 @@ function _M.warm_up(rules)
     local need_random = false
     local targets = {}
     for k, v in ipairs(rules) do
-        local count = stats:get(v .. "-count")
-        if count == nil or count < 10 then
+        local count = stats:get(v .. "-count") or 0
+        local avg_res_speed = stats:get(v .. "-speed") or 0
+        ngx.log(ngx.DEBUG, v .. " current speed is " .. type(avg_res_speed))
+        if avg_res_speed == 0 then
+            ngx.log(ngx.DEBUG, "use random strategy as no speed metric")
             need_random = true
-            targets[#targets+1] = v
+            targets[#targets + 1] = v
+        elseif count < 10 then
+            ngx.log(ngx.DEBUG, "use random strategy as too few metrics")
+            need_random = true
+            targets[#targets + 1] = v
         end
     end
     if need_random == true then
@@ -39,11 +46,11 @@ function _M.warm_up(rules)
         local r_index = math.random(1, #targets)
         ngx.log(ngx.DEBUG, "random number for node selection is " .. r_index)
         local r_target = targets[r_index]
-        ngx.log(ngx.DEBUG, "all nodes has too few metrics, select by random to " .. r_target)
+        ngx.log(ngx.DEBUG, "select by random to " .. r_target)
         return r_target
     end
 
-    return 
+    return
 end
 
 function _M.least_ttfb()
@@ -51,7 +58,7 @@ function _M.least_ttfb()
     local least_res_ttfb = 1000000
     local least_upstream
     local avg_res_ttfb
-    local upstream_port 
+    local upstream_port
 
     local warm_target = _M.warm_up(rules)
     if warm_target ~= nil then
@@ -70,7 +77,7 @@ function _M.least_ttfb()
         end
     end
     ngx.log(ngx.INFO, least_upstream .. " is best upstream now as its res ttfb is " .. avg_res_ttfb)
-    upstream_port = stats:get(least_upstream.. "-port")
+    upstream_port = stats:get(least_upstream .. "-port")
     return {least_upstream, upstream_port}
 end
 
@@ -79,7 +86,7 @@ function _M.max_speed()
     local max_res_speed = -1
     local fastest_upstream
     local avg_res_speed
-    local upstream_port 
+    local upstream_port
 
     -- repeat
     --     ngx.log(ngx.DEBUG, "there is no rule, so generate and save rules")
@@ -94,7 +101,7 @@ function _M.max_speed()
 
     -- select upstream that is fastest
     for k, v in ipairs(rules) do
-        local avg_res_speed_key = v .. "-speed" 
+        local avg_res_speed_key = v .. "-speed"
         avg_res_speed = stats:get(avg_res_speed_key)
         ngx.log(ngx.DEBUG, v .. " current speed is " .. avg_res_speed)
         if avg_res_speed > max_res_speed then

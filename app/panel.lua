@@ -40,7 +40,7 @@ function _M.reslove(host)
     end
 
     if answers.errcode then
-        ngx.log(ngx.INFO, "server returned error code: ", answers.errcode, ": ", answers.errstr)
+        ngx.log(ngx.ERR, "server returned error code: ", answers.errcode, ": ", answers.errstr)
     end
 
     for i, ans in ipairs(answers) do
